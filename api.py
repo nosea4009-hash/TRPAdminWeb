@@ -72,7 +72,7 @@ API_KEY = os.environ.get("API_KEY", "")
 # --------------------------------------------------------------------------
 CMD_TEMPLATE = os.environ.get(
     "CMD_TEMPLATE",
-    "python {script} --radar {radar} --producto {producto} --outdir {outdir}"
+    "python plot_radar.py --radar RMA1 --product DBZHo --extra-ring 260 --palette NWS"
 )
 
 # Patrón para reconocer los archivos generados: RADAR_PRODUCTO_YYYYMMDD_HHMMSS.png
