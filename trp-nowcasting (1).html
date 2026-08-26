@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grupo TRP Meteorología — Panel de Nowcasting</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+<style>
+/* =========================================================================
+   GRUPO TRP METEOROLOGÍA — token system
+   Color:  --trp-white #FFFFFF | --trp-fog #EAF2FB | --trp-blue-50 #DCEBFB
+           --trp-blue-500 #1668C7 | --trp-blue-700 #0C468F | --trp-blue-900 #082C5C
+           --trp-ink #14304F | --trp-cyan #4FC3F7 | --trp-steel #5D7A9C
+   Tipografía: display "Trebuchet MS" (glossy Web 2.0), cuerpo "Segoe UI",
+               datos/monoespaciada "Consolas"
+   Firma: barra superior "cromada" con reflejo especular + botones "gel"
+   ========================================================================= */
+:root{
+  --trp-white:#ffffff;
+  --trp-fog:#eaf2fb;
+  --trp-blue-50:#dcebfb;
+  --trp-blue-100:#c3e0fa;
+  --trp-blue-300:#7fb8ee;
+  --trp-blue-500:#1668c7;
+  --trp-blue-600:#125bb0;
+  --trp-blue-700:#0c468f;
+  --trp-blue-900:#082c5c;
+  --trp-ink:#14304f;
+  --trp-steel:#5d7a9c;
+  --trp-cyan:#4fc3f7;
+  --trp-line:#c6dcf3;
+  --shadow-soft: 0 2px 6px rgba(8,44,92,.12), 0 1px 0 rgba(255,255,255,.7) inset;
+  --shadow-panel: 0 6px 22px rgba(8,44,92,.14), 0 1px 0 rgba(255,255,255,.9) inset;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:"Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 15% -10%, #f4f9ff 0%, transparent 60%),
+    linear-gradient(180deg,#eef5fd 0%, #e3eefb 40%, #d9e9fa 100%);
+  color:var(--trp-ink);
+  min-height:100vh;
+}
+h1,h2,h3,.display{
+  font-family:"Trebuchet MS","Segoe UI",sans-serif;
+  font-weight:700;
+  letter-spacing:.2px;
+}
+.mono{font-family:Consolas,"Courier New",monospace;}
+
+/* ---------- glossy scrollbars ---------- */
+::-webkit-scrollbar{width:11px;height:11px;}
+::-webkit-scrollbar-track{background:var(--trp-blue-50);}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--trp-blue-300),var(--trp-blue-500));border-radius:8px;border:2px solid var(--trp-blue-50);}
+
+/* ---------- LOGIN GATE ---------- */
+#gate{
+  position:fixed;inset:0;z-index:999;
+  display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(900px 500px at 50% 0%, #dcebfb 0%, #b9d7f5 45%, #8fbde8 100%);
+}
+.gate-card{
+  width:380px;max-width:90vw;
+  background:linear-gradient(180deg,#ffffff 0%, #f2f8ff 100%);
+  border-radius:16px;
+  border:1px solid var(--trp-blue-100);
+  box-shadow:var(--shadow-panel);
+  padding:34px 30px 28px;
+  text-align:center;
+}
+.gate-logo{
+  width:76px;height:76px;margin:0 auto 14px;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 32% 26%, #eaf6ff 0%, #7fc2f2 28%, #1668c7 62%, #082c5c 100%);
+  box-shadow:0 6px 14px rgba(8,44,92,.35), 0 0 0 5px #ffffff, 0 0 0 6px var(--trp-blue-100);
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Trebuchet MS";font-weight:800;color:#fff;font-size:26px;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+.gate-card h1{font-size:19px;color:var(--trp-blue-900);margin:6px 0 2px;}
+.gate-sub{font-size:12px;color:var(--trp-steel);margin-bottom:20px;letter-spacing:.5px;text-transform:uppercase;}
+.gate-card input{
+  width:100%;padding:11px 13px;margin-bottom:12px;
+  border-radius:9px;border:1px solid var(--trp-blue-100);
+  background:linear-gradient(180deg,#fff,#f4f9ff);
+  font-size:14px;color:var(--trp-ink);
+  box-shadow:inset 0 2px 4px rgba(8,44,92,.08);
+}
+.gate-card input:focus{outline:2px solid var(--trp-blue-300);}
+.gate-err{color:#c62828;font-size:12px;height:16px;margin-bottom:6px;}
+.gate-note{font-size:10.5px;color:var(--trp-steel);margin-top:16px;line-height:1.5;}
+
+/* ---------- glossy button ---------- */
+.btn{
+  --b1:#5cb0f2; --b2:#1668c7; --b3:#0c468f;
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 18px;border:none;border-radius:8px;cursor:pointer;
+  font-family:"Trebuchet MS";font-weight:700;font-size:13px;color:#fff;
+  background:linear-gradient(180deg, var(--b1) 0%, var(--b2) 48%, var(--b3) 100%);
+  box-shadow:0 3px 0 var(--b3), 0 4px 8px rgba(8,44,92,.28), inset 0 1px 0 rgba(255,255,255,.6);
+  text-shadow:0 1px 1px rgba(0,0,0,.35);
+  transition:transform .06s ease, box-shadow .06s ease;
+}
+.btn::after{
+  content:"";position:absolute;left:6%;right:6%;top:6%;height:38%;border-radius:6px 6px 12px 12px;
+  background:linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,0));
+  pointer-events:none;
+}
+.btn:hover{filter:brightness(1.05);}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--b3), 0 2px 4px rgba(8,44,92,.28), inset 0 1px 0 rgba(255,255,255,.6);}
+.btn.ghost{--b1:#fff;--b2:#eaf3fd;--b3:#bcd8f5;color:var(--trp-blue-700);text-shadow:none;}
+.btn.sm{padding:6px 12px;font-size:11.5px;border-radius:6px;}
+.btn.warn{--b1:#ff9a5c;--b2:#e8720f;--b3:#a84e08;}
+.btn.danger{--b1:#f26d6d;--b2:#d32f2f;--b3:#8e1f1f;}
+.btn:disabled{filter:grayscale(.5);opacity:.55;cursor:not-allowed;}
+
+/* ---------- APP SHELL ---------- */
+#app{display:none;min-height:100vh;flex-direction:column;}
+#app.show{display:flex;}
+
+header.topbar{
+  position:relative;z-index:20;
+  background:
+    linear-gradient(180deg, #4fa8ec 0%, #1668c7 38%, #0c468f 70%, #082c5c 100%);
+  box-shadow:0 3px 10px rgba(8,44,92,.35);
+  padding:0 22px;
+  display:flex;align-items:center;gap:18px;height:66px;
+  border-bottom:1px solid #06203f;
+}
+header.topbar::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:50%;
+  background:linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,0));
+  pointer-events:none;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-badge{
+  width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 32% 26%, #eaf6ff 0%, #9fd0f5 30%, #1668c7 68%, #082c5c 100%);
+  box-shadow:0 2px 6px rgba(0,0,0,.4), 0 0 0 3px rgba(255,255,255,.55);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-family:"Trebuchet MS";font-weight:800;font-size:15px;text-shadow:0 1px 2px rgba(0,0,0,.4);
+}
+.brand-text .t1{color:#fff;font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1.1;text-shadow:0 1px 2px rgba(0,0,0,.35);}
+.brand-text .t2{color:#cfe6fb;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;}
+
+nav.tabs{display:flex;gap:6px;margin-left:10px;flex:1;}
+.tab{
+  position:relative;padding:9px 16px;border-radius:9px 9px 0 0;cursor:pointer;
+  font-family:"Trebuchet MS";font-weight:700;font-size:12.5px;color:#dcecfb;
+  background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0));
+  border:1px solid transparent;
+  display:flex;align-items:center;gap:7px;
+}
+.tab:hover{background:rgba(255,255,255,.12);}
+.tab.active{
+  color:var(--trp-blue-800,#0c468f);
+  background:linear-gradient(180deg,#ffffff 0%, #eaf3fd 100%);
+  box-shadow:0 -2px 6px rgba(0,0,0,.15);
+}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:#7fd67f;box-shadow:0 0 5px #7fd67f;}
+
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.admin-chip{
+  display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:5px 12px 5px 5px;
+  color:#eaf6ff;font-size:12px;
+}
+.admin-chip .av{width:24px;height:24px;border-radius:50%;background:linear-gradient(180deg,#fff,#bcd8f5);}
+
+main{flex:1;display:flex;background:transparent;min-height:0;}
+.view{display:none;flex:1;min-height:0;}
+.view.active{display:flex;}
+
+/* ---------- Sidebar / panel chrome ---------- */
+.sidebar{
+  width:296px;flex-shrink:0;background:linear-gradient(180deg,#ffffff,#f2f8ff);
+  border-right:1px solid var(--trp-line);
+  padding:16px 16px 24px;overflow-y:auto;
+}
+.sidebar h3{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--trp-blue-700);
+  border-bottom:2px solid var(--trp-blue-100);padding-bottom:6px;margin:18px 0 10px;}
+.sidebar h3:first-child{margin-top:0;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--trp-steel);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
+select, input[type=text], input[type=number], textarea{
+  width:100%;padding:8px 10px;border-radius:7px;border:1px solid var(--trp-blue-100);
+  background:linear-gradient(180deg,#fff,#f6faff);font-size:13px;color:var(--trp-ink);
+  box-shadow:inset 0 1px 3px rgba(8,44,92,.08);
+}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--trp-blue-300);}
+.row{display:flex;gap:8px;}
+.row > *{flex:1;}
+.hint{font-size:10.5px;color:var(--trp-steel);margin-top:4px;line-height:1.4;}
+.card{
+  background:linear-gradient(180deg,#ffffff,#f2f8ff);
+  border:1px solid var(--trp-blue-100);border-radius:11px;
+  box-shadow:var(--shadow-soft);padding:12px 14px;margin-bottom:12px;
+}
+.status-line{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--trp-steel);}
+.pulse{width:8px;height:8px;border-radius:50%;background:#3fbf5f;box-shadow:0 0 6px #3fbf5f;animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.pulse.stale{background:#e0a500;box-shadow:0 0 6px #e0a500;}
+.pulse.dead{background:#c62828;box-shadow:0 0 6px #c62828;animation:none;}
+
+.map-area{flex:1;position:relative;min-width:0;}
+#radarMap,#dualMap,#warnMap,#metarMap{width:100%;height:100%;}
+
+.legend-glass{
+  position:absolute;bottom:16px;left:16px;z-index:500;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(3px);
+  border:1px solid var(--trp-blue-100);border-radius:10px;box-shadow:var(--shadow-panel);
+  padding:10px 12px;font-size:11px;color:var(--trp-ink);
+}
+.legend-bar{height:10px;width:220px;border-radius:4px;margin:5px 0 3px;
+  background:linear-gradient(90deg,#6e6e6e,#00e0e0,#00b0ff,#00d000,#e8e800,#ff9c00,#ff2200,#c00000,#7a00c0,#ff00ff);}
+.legend-scale{display:flex;justify-content:space-between;font-size:9.5px;color:var(--trp-steel);}
+
+.map-toolbar{
+  position:absolute;top:14px;right:14px;z-index:500;display:flex;flex-direction:column;gap:8px;
+}
+.toolbar-panel{
+  background:rgba(255,255,255,.95);border:1px solid var(--trp-blue-100);border-radius:11px;
+  box-shadow:var(--shadow-panel);padding:10px;min-width:190px;
+}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.4px;}
+.badge.blue{background:var(--trp-blue-50);color:var(--trp-blue-700);}
+.badge.green{background:#e2f7e5;color:#1e7d34;}
+.badge.orange{background:#ffe9d6;color:#a84e08;}
+
+/* ---------- SATELLITE VIEW ---------- */
+.sat-view{flex:1;display:flex;min-width:0;}
+.sat-stage{
+  flex:1;position:relative;overflow:hidden;background:#050c18;
+  display:flex;align-items:center;justify-content:center;
+}
+.sat-stage .zoomwrap{width:100%;height:100%;overflow:hidden;cursor:grab;display:flex;align-items:center;justify-content:center;}
+.sat-stage .zoomwrap:active{cursor:grabbing;}
+.sat-stage img{max-width:none;user-select:none;-webkit-user-drag:none;box-shadow:0 0 60px rgba(0,0,0,.6);}
+.sat-hud{
+  position:absolute;top:14px;left:14px;z-index:5;background:rgba(8,44,92,.72);color:#eaf6ff;
+  padding:8px 12px;border-radius:9px;font-size:11.5px;backdrop-filter:blur(2px);
+  border:1px solid rgba(255,255,255,.15);
+}
+.sat-zoomctl{position:absolute;bottom:16px;right:16px;z-index:5;display:flex;flex-direction:column;gap:6px;}
+.sat-zoomctl .btn{width:38px;height:38px;padding:0;font-size:18px;border-radius:50%;}
+
+/* ---------- WARNGEN legend chips ---------- */
+.wtype{
+  display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:8px;cursor:pointer;
+  border:2px solid transparent;margin-bottom:6px;background:#fff;
+}
+.wtype:hover{background:var(--trp-fog);}
+.wtype.sel{border-color:var(--trp-blue-500);background:var(--trp-blue-50);}
+.wswatch{width:18px;height:18px;border-radius:4px;border:2px solid #000;flex-shrink:0;}
+.wtype .wname{font-size:12px;font-weight:600;}
+
+#warnTextOut{
+  width:100%;min-height:200px;font-size:12px;line-height:1.55;padding:12px;
+  border-radius:8px;border:1px solid var(--trp-blue-100);background:#fbfdff;
+  box-shadow:inset 0 1px 3px rgba(8,44,92,.08);
+}
+
+/* ---------- METAR table ---------- */
+table.metar-tbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+table.metar-tbl th{background:var(--trp-blue-50);color:var(--trp-blue-700);text-align:left;padding:6px 8px;position:sticky;top:0;}
+table.metar-tbl td{padding:5px 8px;border-bottom:1px solid var(--trp-fog);}
+table.metar-tbl tr:hover td{background:var(--trp-fog);}
+
+.split-toggle{display:flex;background:var(--trp-blue-50);border-radius:8px;padding:3px;gap:3px;}
+.split-toggle button{flex:1;border:none;background:transparent;padding:7px 6px;border-radius:6px;font-size:11.5px;font-weight:700;color:var(--trp-blue-700);cursor:pointer;}
+.split-toggle button.on{background:linear-gradient(180deg,#fff,#eaf3fd);box-shadow:var(--shadow-soft);}
+
+.footerbar{
+  padding:6px 16px;background:linear-gradient(180deg,#0c468f,#082c5c);color:#bcd8f5;
+  font-size:10.5px;display:flex;justify-content:space-between;
+}
+a{color:var(--trp-blue-600);}
+
+/* toast */
+#toast{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toastmsg{background:linear-gradient(180deg,#fff,#eaf3fd);border:1px solid var(--trp-blue-100);border-left:4px solid var(--trp-blue-500);
+  box-shadow:var(--shadow-panel);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--trp-ink);min-width:240px;
+  animation:slidein .25s ease;}
+.toastmsg.err{border-left-color:#c62828;}
+@keyframes slidein{from{transform:translateX(30px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important;} }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ LOGIN GATE ============================================================ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-logo">TRP</div>
+    <h1>Grupo TRP Meteorología</h1>
+    <div class="gate-sub">Panel de Nowcasting · Solo Administradores</div>
+    <input type="text" id="gateUser" placeholder="Usuario" autocomplete="off">
+    <input type="password" id="gatePass" placeholder="Contraseña" autocomplete="off">
+    <div class="gate-err" id="gateErr"></div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Ingresar al panel</button>
+    <div class="gate-note">Acceso interno — Usuario demo: <b>admin</b> / Contraseña: <b>trp2026</b><br>
+    Este login es solo de interfaz. Para producción reemplazar por autenticación real en el backend.</div>
+  </div>
+</div>
+
+<!-- ============================================================ APP SHELL ============================================================ -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">TRP</div>
+      <div class="brand-text">
+        <div class="t1">Grupo TRP Meteorología</div>
+        <div class="t2">Panel de Nowcasting</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <div class="tab active" data-view="radar"><span class="dot"></span>Radar</div>
+      <div class="tab" data-view="sat"><span class="dot"></span>Satélite GOES-19</div>
+      <div class="tab" data-view="dual"><span class="dot"></span>Doble Panel</div>
+      <div class="tab" data-view="warngen"><span class="dot"></span>WarnGen</div>
+      <div class="tab" data-view="metar"><span class="dot"></span>METAR / CPI</div>
+    </nav>
+    <div class="topbar-right">
+      <div class="admin-chip"><div class="av"></div><span id="whoami">admin</span></div>
+      <button class="btn ghost sm" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- =============================== VISTA RADAR =============================== -->
+    <section class="view active" id="view-radar">
+      <div class="sidebar">
+        <h3>Fuente — API OHMC</h3>
+        <div class="card">
+          <div class="status-line"><span class="pulse" id="radarPulse"></span><span id="radarStatusTxt">Conectando a webmet.ohmc.ar…</span></div>
+        </div>
+        <div class="field">
+          <label>Radar (red SiNaRaMe)</label>
+          <select id="radarSelect"></select>
+        </div>
+        <div class="field">
+          <label>Producto</label>
+          <select id="productSelect">
+            <option value="COLMAX">COLMAX — Reflectividad columna máx.</option>
+            <option value="ZH">ZH — Reflectividad horizontal</option>
+            <option value="ZDR">ZDR — Reflectividad diferencial</option>
+            <option value="RHOHV">RHOHV — Correlación</option>
+            <option value="KDP">KDP — Fase diferencial</option>
+            <option value="VEL">VEL — Velocidad radial</option>
+            <option value="CAPPI3km">CAPPI 3km</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Vol NR</label>
+            <select id="volSelect"><option value="01">01</option><option value="02">02</option></select>
+          </div>
+          <div class="field">
+            <label>Estrategia</label>
+            <select id="stratSelect"><option value="0315">0315</option><option value="0200">0200</option><option value="0121">0121</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Opacidad del radar: <span id="opVal">80%</span></label>
+          <input type="range" id="opRange" min="10" max="100" value="80" style="width:100%">
+        </div>
+        <div class="row">
+          <button class="btn sm" onclick="fetchLatestCog(true)">🔄 Actualizar</button>
+          <button class="btn ghost sm" id="autoBtn" onclick="toggleAuto()">▶ Auto (2min)</button>
+        </div>
+        <h3>Info del producto</h3>
+        <div class="card mono" id="radarMeta" style="font-size:11px;line-height:1.6;color:var(--trp-steel);">—</div>
+        <h3>Capas</h3>
+        <div class="field"><label><input type="checkbox" id="chkProvincias" checked onchange="toggleLayer('prov')"> Límites provinciales</label></div>
+        <div class="field"><label><input type="checkbox" id="chkRios" checked onchange="toggleLayer('rios')"> Ríos principales</label></div>
+      </div>
+      <div class="map-area">
+        <div id="radarMap"></div>
+        <div class="legend-glass">
+          <div style="font-weight:700;font-size:11px;color:var(--trp-blue-700);">dBZ</div>
+          <div class="legend-bar"></div>
+          <div class="legend-scale"><span>-20</span><span>0</span><span>20</span><span>40</span><span>55+</span><span>70</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================== VISTA SATÉLITE =============================== -->
+    <section class="view" id="view-sat">
+      <div class="sidebar">
+        <h3>GOES-19 (GOES-East) — NOAA/STAR</h3>
+        <div class="field">
+          <label>Sector</label>
+          <select id="satSector">
+            <option value="sa">Sudamérica</option>
+            <option value="taw">Atlántico Tropical</option>
+            <option value="ssa">Cono Sur</option>
+            <option value="full">Disco completo</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Producto</label>
+          <select id="satProduct">
+            <option value="GEOCOLOR">GeoColor</option>
+            <option value="13">IR Limpio (Canal 13)</option>
+            <option value="08">Vapor de agua (Canal 8)</option>
+            <option value="02">Visible (Canal 2)</option>
+            <option value="AirMass">Masa de aire (RGB)</option>
+            <option value="GLM">GLM — Densidad de rayos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Resolución</label>
+          <select id="satRes">
+            <option value="600x600">600×600</option>
+            <option value="1200x1200" selected>1200×1200</option>
+            <option value="2400x2400">2400×2400</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn sm" onclick="loadSat()">🔄 Cargar imagen</button>
+          <button class="btn ghost sm" onclick="resetZoom('sat')">Reset zoom</button>
+        </div>
+        <div class="hint" id="glmNote" style="display:none;background:#fff4e0;border:1px solid #f0c68a;padding:8px;border-radius:7px;margin-top:6px;">
+          ⚠ El producto GLM de GOES-19 puede estar temporalmente no disponible según el estado operativo publicado por NOAA/STAR.
+        </div>
+        <h3>Acerca de</h3>
+        <div class="hint">Imágenes estáticas servidas por el visor público de NOAA/STAR (star.nesdis.noaa.gov/GOES). Se actualizan automáticamente cada ~10 min según el sector. Usá la rueda del mouse o los botones (+ / −) para hacer zoom, y arrastrá para desplazarte.</div>
+      </div>
+      <div class="sat-stage">
+        <div class="sat-hud" id="satHud">GOES-19 · GeoColor · Sudamérica</div>
+        <div class="zoomwrap" id="satZoomWrap">
+          <img id="satImg" src="" alt="GOES-19">
+        </div>
+        <div class="sat-zoomctl">
+          <button class="btn" onclick="zoomStep('sat',1.25)">+</button>
+          <button class="btn ghost" onclick="zoomStep('sat',0.8)">−</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================== VISTA DOBLE PANEL =============================== -->
+    <section class="view" id="view-dual">
+      <div class="sidebar">
+        <h3>Doble Panel</h3>
+        <div class="field">
+          <label>Fuente del radar</label>
+          <div class="split-toggle">
+            <button class="on" id="dualSrcOhmc" onclick="setDualSource('ohmc')">Mapa OHMC (interactivo)</button>
+            <button id="dualSrcOwn" onclick="setDualSource('own')">Servidor propio (PPI/VRAD/COLMAX)</button>
+          </div>
+        </div>
+
+        <!-- ---- sub-panel: fuente OHMC (mapa interactivo con overlay) ---- -->
+        <div id="dualPanelOhmc">
+          <div class="field">
+            <label>Modo de visualización</label>
+            <div class="split-toggle">
+              <button class="on" id="dualModeOverlay" onclick="setDualMode('overlay')">Overlay (mapa)</button>
+              <button id="dualModeSplit" onclick="setDualMode('split')">Lado a lado</button>
+            </div>
+          </div>
+          <h3>Capa Radar (OHMC)</h3>
+          <div class="field"><label>Radar</label><select id="dualRadarSelect"></select></div>
+          <div class="field"><label>Producto</label>
+            <select id="dualProductSelect">
+              <option value="COLMAX">COLMAX</option>
+              <option value="ZH">ZH</option>
+            </select>
+          </div>
+          <div class="field"><label>Opacidad radar: <span id="dualOpRadarVal">75%</span></label>
+            <input type="range" id="dualOpRadar" min="0" max="100" value="75" style="width:100%"></div>
+          <h3>Capa Satélite (GOES-19)</h3>
+          <div class="field"><label>Producto</label>
+            <select id="dualSatProduct">
+              <option value="GEOCOLOR">GeoColor</option>
+              <option value="13">IR Limpio</option>
+              <option value="GLM">GLM — Rayos</option>
+            </select>
+          </div>
+          <div class="field"><label>Opacidad satélite: <span id="dualOpSatVal">55%</span></label>
+            <input type="range" id="dualOpSat" min="0" max="100" value="55" style="width:100%"></div>
+          <button class="btn" style="width:100%;margin-top:6px" onclick="applyDual()">Aplicar overlay</button>
+          <div class="hint" style="margin-top:10px">La imagen satelital se referencia aproximadamente al extent geográfico del sector, superpuesta sobre el mapa de radar interactivo (Leaflet). No es un georreferenciado exacto por píxel.</div>
+        </div>
+
+        <!-- ---- sub-panel: servidor propio (plots estáticos reales) ---- -->
+        <div id="dualPanelOwn" style="display:none;">
+          <h3>Backend propio de radar</h3>
+          <div class="field"><label>URL del backend (Render/VPS)</label>
+            <input type="text" id="ownBackendUrl" placeholder="https://trp-radar-backend.onrender.com"></div>
+          <div class="field"><label>API Key (si la configuraste)</label>
+            <input type="text" id="ownApiKey" placeholder="opcional"></div>
+          <div class="row">
+            <div class="field"><label>Radar</label>
+              <input type="text" id="ownRadar" value="RMA2" placeholder="RMA2"></div>
+            <div class="field"><label>Producto</label>
+              <select id="ownProducto">
+                <option value="DBZHo">DBZHo (PPI)</option>
+                <option value="VRAD">VRAD</option>
+                <option value="COLMAX">COLMAX</option>
+              </select>
+            </div>
+          </div>
+          <div class="status-line"><span class="pulse" id="ownPulse"></span><span id="ownStatusTxt">Sin conectar</span></div>
+          <button class="btn sm" style="width:100%" onclick="loadOwnRadar()">🔄 Cargar plot del radar</button>
+          <button class="btn ghost sm" style="width:100%;margin-top:6px" onclick="toggleOwnAuto()" id="ownAutoBtn">▶ Auto (según ciclo del backend)</button>
+          <h3>Satélite (comparación)</h3>
+          <div class="field"><label>Producto GOES-19</label>
+            <select id="ownSatProduct">
+              <option value="GEOCOLOR">GeoColor</option>
+              <option value="13">IR Limpio</option>
+              <option value="GLM">GLM — Rayos</option>
+            </select>
+          </div>
+          <button class="btn ghost sm" style="width:100%" onclick="loadOwnSat()">🔄 Cargar satélite</button>
+          <div class="hint" style="margin-top:10px">Este modo muestra dos plots estáticos reales, lado a lado, cada uno con su propio zoom/pan independiente: a la izquierda tu render de PPI/VRAD/COLMAX (generado por tu script), a la derecha GOES-19. Ver <span class="mono">README.md</span> del backend para el deploy.</div>
+        </div>
+      </div>
+
+      <!-- vista mapa (fuente OHMC) -->
+      <div class="map-area" id="dualArea">
+        <div id="dualMap"></div>
+        <div class="map-toolbar">
+          <div class="toolbar-panel">
+            <div style="font-size:11px;font-weight:700;color:var(--trp-blue-700);margin-bottom:4px;">Vista dual — OHMC</div>
+            <div class="hint">Radar OHMC + GOES-19 superpuestos</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- vista lado a lado (fuente propia) -->
+      <div class="map-area" id="dualOwnArea" style="display:none;">
+        <div style="width:100%;height:100%;display:flex;">
+          <div class="sat-stage" style="flex:1;border-right:2px solid var(--trp-blue-500);">
+            <div class="sat-hud" id="ownRadarHud">Radar propio — sin datos</div>
+            <div class="zoomwrap" id="ownRadarZoomWrap"><img id="ownRadarImg" src="" alt="Radar propio"></div>
+            <div class="sat-zoomctl">
+              <button class="btn" onclick="zoomStep('ownRadar',1.25)">+</button>
+              <button class="btn ghost" onclick="zoomStep('ownRadar',0.8)">−</button>
+            </div>
+          </div>
+          <div class="sat-stage" style="flex:1;">
+            <div class="sat-hud" id="ownSatHud">GOES-19 — sin datos</div>
+            <div class="zoomwrap" id="ownSatZoomWrap"><img id="ownSatImg" src="" alt="GOES-19"></div>
+            <div class="sat-zoomctl">
+              <button class="btn" onclick="zoomStep('ownSat',1.25)">+</button>
+              <button class="btn ghost" onclick="zoomStep('ownSat',0.8)">−</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================== VISTA WARNGEN =============================== -->
+    <section class="view" id="view-warngen">
+      <div class="sidebar">
+        <h3>WarnGen — Tipo de alerta</h3>
+        <div id="wtypeList"></div>
+
+        <h3>Herramienta de polígono</h3>
+        <div class="hint" style="margin-bottom:8px;">Elegí un tipo de alerta arriba y usá la herramienta de dibujo del mapa (ícono de polígono, esquina superior izquierda del mapa) para trazar el área de aviso.</div>
+        <button class="btn sm" onclick="clearWarnings()">🗑 Limpiar todos</button>
+
+        <h3>Exportar</h3>
+        <div class="row">
+          <button class="btn sm" onclick="exportGeoJSON()">⬇ GeoJSON</button>
+          <button class="btn sm" onclick="exportShapefile()">⬇ Shapefile</button>
+        </div>
+
+        <h3>Texto del aviso</h3>
+        <div class="field"><label>Localidades afectadas</label><input type="text" id="wLoc" placeholder="Ej: La Plata, Berazategui, Quilmes"></div>
+        <div class="field"><label>Motivo / fenómeno</label><input type="text" id="wMotivo" placeholder="Ej: granizo, ráfagas &gt; 90 km/h"></div>
+        <div class="field"><label>Movimiento de la célula</label><input type="text" id="wMov" placeholder="Ej: se desplaza hacia el ESE a 35 km/h"></div>
+        <div class="field"><label>Validez (UTC)</label>
+          <div class="row">
+            <input type="text" id="wDesde" placeholder="hasta las">
+            <input type="text" id="wHasta" placeholder="18:45Z">
+          </div>
+        </div>
+        <button class="btn sm" style="width:100%" onclick="genWarnText()">📝 Generar texto</button>
+      </div>
+      <div class="map-area">
+        <div id="warnMap"></div>
+      </div>
+      <div class="sidebar" style="width:340px;border-right:none;border-left:1px solid var(--trp-line);">
+        <h3>Salida — Texto formateado</h3>
+        <textarea id="warnTextOut" readonly></textarea>
+        <button class="btn ghost sm" style="width:100%;margin-top:8px" onclick="copyWarnText()">📋 Copiar al portapapeles</button>
+        <h3>Polígonos activos</h3>
+        <div id="warnList" class="hint">Sin polígonos activos.</div>
+      </div>
+    </section>
+
+    <!-- =============================== VISTA METAR / CPI =============================== -->
+    <section class="view" id="view-metar">
+      <div class="sidebar">
+        <h3>CPI — Cartas de Pronóstico (SMN)</h3>
+        <div class="hint">Las Cartas de Pronóstico Interpretadas se descargan directamente desde el sitio oficial del SMN. Por política de CORS del navegador no pueden incrustarse ni scrapearse automáticamente; el botón abre la fuente oficial.</div>
+        <button class="btn sm" style="width:100%;margin-top:8px" onclick="window.open('https://ssl.smn.gob.ar/?mod=dpd&id=58','_blank')">↗ Abrir CPI oficial SMN</button>
+
+        <h3>METAR — SMN Descarga de Datos</h3>
+        <div class="hint">Portal oficial de estaciones y datos horarios del SMN (no ofrece endpoint JSON público apto para fetch desde el navegador). Podés abrir el portal, o pegar abajo el texto METAR crudo (una línea por estación) para graficarlo sobre el mapa usando la base de estaciones de Grupo TRP.</div>
+        <button class="btn ghost sm" style="width:100%;margin:6px 0" onclick="window.open('https://www.smn.gob.ar/descarga-de-datos','_blank')">↗ Abrir portal SMN</button>
+        <div class="field">
+          <label>Pegar METAR (uno por línea)</label>
+          <textarea id="metarInput" style="min-height:110px" placeholder="SAEZ 251800Z 27015KT 9999 FEW030 22/14 Q1012
+SABE 251800Z 26012KT 9999 SCT025 23/13 Q1012"></textarea>
+        </div>
+        <button class="btn sm" style="width:100%" onclick="plotMetar()">📍 Plotear estaciones</button>
+        <div class="hint" style="margin-top:6px">Se reconocen ~35 estaciones principales de Argentina por código OACI (SAEZ, SABE, SACO, SAME, SAZR, SAAR, SANT, etc.)</div>
+      </div>
+      <div class="map-area" style="display:flex;flex-direction:column;">
+        <div id="metarMap" style="flex:1.4;"></div>
+        <div style="flex:1;overflow:auto;background:#fff;border-top:1px solid var(--trp-line);">
+          <table class="metar-tbl" id="metarTable">
+            <thead><tr><th>ICAO</th><th>Hora (Z)</th><th>Viento</th><th>Visib.</th><th>Nubosidad</th><th>Temp/PR</th><th>QNH</th></tr></thead>
+            <tbody><tr><td colspan="7" style="text-align:center;color:var(--trp-steel);padding:16px;">Sin datos METAR cargados.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="footerbar">
+    <span>Grupo TRP Meteorología · Panel de Nowcasting interno · Uso exclusivo de administradores</span>
+    <span id="clockUTC" class="mono"></span>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ============================================================ SCRIPTS ============================================================ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
+
+<script>
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const OHMC_BASE = "https://webmet.ohmc.ar";
+const RADAR_LIST_FALLBACK = [
+ {"code":"AR7","title":"Paraná","center_lat":-31.84849,"center_long":-60.53724},
+ {"code":"AR8","title":"Anguil","center_lat":-36.53965,"center_long":-63.98984},
+ {"code":"RMA1","title":"Córdoba","center_lat":-31.44139,"center_long":-64.19194},
+ {"code":"RMA10","title":"Espora","center_lat":-38.73426,"center_long":-62.16341},
+ {"code":"RMA12","title":"Las Grutas","center_lat":-40.77221,"center_long":-65.07604},
+ {"code":"RMA14","title":"Bolívar","center_lat":-36.18903,"center_long":-61.07041},
+ {"code":"RMA15","title":"Patquía","center_lat":-30.0308,"center_long":-66.8763},
+ {"code":"RMA16","title":"Villa Reynolds","center_lat":-33.71829,"center_long":-65.37546},
+ {"code":"RMA17","title":"Alejandro Roca","center_lat":-33.3514,"center_long":-63.7036},
+ {"code":"RMA18","title":"Santa Isabel (La Pampa)","center_lat":-36.22317,"center_long":-66.93639},
+ {"code":"RMA2","title":"Ezeiza","center_lat":-34.80082,"center_long":-58.51557},
+ {"code":"RMA20","title":"Las Lajitas (Salta)","center_lat":-24.74611,"center_long":-64.25111},
+ {"code":"RMA3","title":"Las Lomitas","center_lat":-24.73028,"center_long":-60.55139},
+ {"code":"RMA4","title":"Resistencia","center_lat":-27.45167,"center_long":-59.05083},
+ {"code":"RMA5","title":"Bernardo de Irigoyen","center_lat":-26.27812,"center_long":-53.67085},
+ {"code":"RMA6","title":"Mar del Plata","center_lat":-37.91306,"center_long":-57.52783},
+ {"code":"RMA7","title":"Neuquén","center_lat":-38.87662,"center_long":-68.14489},
+ {"code":"RMA8","title":"Mercedes (Corrientes)","center_lat":-29.19591,"center_long":-58.04485},
+ {"code":"RMA9","title":"Río Grande","center_lat":-53.78399,"center_long":-67.74426}
+];
+
+const WARNING_TYPES = [
+  {id:"severa",  name:"Tormenta Severa",        fill:"#E30513", weight:3},
+  {id:"fuerte",  name:"Tormenta Fuerte",        fill:"#FF8C00", weight:3},
+  {id:"flash",   name:"Crecida Súbita (Flash Flood)", fill:"#1FA24A", weight:3},
+  {id:"viento",  name:"Viento Fuerte / Ráfagas", fill:"#FFD400", weight:3},
+  {id:"granizo", name:"Granizo Grande",          fill:"#FF2FA0", weight:3},
+  {id:"tornado", name:"Tornado",                 fill:"#8B008B", weight:3}
+];
+let selectedWType = WARNING_TYPES[0];
+
+/* =========================================================================
+   GATE / LOGIN
+   ========================================================================= */
+function doLogin(){
+  const u = document.getElementById('gateUser').value.trim();
+  const p = document.getElementById('gatePass').value.trim();
+  const err = document.getElementById('gateErr');
+  if(u==='admin' && p==='trp2026'){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').classList.add('show');
+    document.getElementById('whoami').textContent = u;
+    initApp();
+  } else {
+    err.textContent = 'Usuario o contraseña incorrectos.';
+  }
+}
+function logout(){
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('gate').style.display='flex';
+  document.getElementById('gatePass').value='';
+}
+document.getElementById('gatePass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+/* =========================================================================
+   TABS
+   ========================================================================= */
+let appInited = false;
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-'+tab.dataset.view).classList.add('active');
+    setTimeout(()=>{
+      if(radarMap) radarMap.invalidateSize();
+      if(dualMap) dualMap.invalidateSize();
+      if(warnMap) warnMap.invalidateSize();
+      if(metarMap) metarMap.invalidateSize();
+    },80);
+  });
+});
+
+/* =========================================================================
+   TOAST
+   ========================================================================= */
+function toast(msg, isErr){
+  const t = document.createElement('div');
+  t.className = 'toastmsg' + (isErr?' err':'');
+  t.textContent = msg;
+  document.getElementById('toast').appendChild(t);
+  setTimeout(()=>t.remove(), 5000);
+}
+
+/* =========================================================================
+   CLOCK
+   ========================================================================= */
+setInterval(()=>{
+  const d = new Date();
+  document.getElementById('clockUTC').textContent = d.toISOString().slice(0,16).replace('T',' ')+'Z';
+},1000);
+
+/* =========================================================================
+   APP INIT
+   ========================================================================= */
+let radarMap, dualMap, warnMap, metarMap;
+let radarTileLayer=null, radarList=[];
+let autoTimer=null;
+
+function initApp(){
+  if(appInited) return;
+  appInited = true;
+  buildWTypeList();
+  loadRadarList();
+  initRadarMap();
+  initDualMap();
+  initWarnMap();
+  initMetarMap();
+  registerZoomViewer('sat','satImg','satZoomWrap');
+  registerZoomViewer('ownRadar','ownRadarImg','ownRadarZoomWrap');
+  registerZoomViewer('ownSat','ownSatImg','ownSatZoomWrap');
+  loadSat();
+  loadOwnSat();
+  document.getElementById('opRange').addEventListener('input', e=>{
+    document.getElementById('opVal').textContent = e.target.value+'%';
+    if(radarTileLayer) radarTileLayer.setOpacity(e.target.value/100);
+  });
+  document.getElementById('radarSelect').addEventListener('change', ()=>fetchLatestCog(true));
+  document.getElementById('productSelect').addEventListener('change', ()=>fetchLatestCog(true));
+  document.getElementById('volSelect').addEventListener('change', ()=>fetchLatestCog(true));
+  document.getElementById('stratSelect').addEventListener('change', ()=>fetchLatestCog(true));
+}
+
+/* =========================================================================
+   RADAR — OHMC API
+   ========================================================================= */
+function initRadarMap(){
+  radarMap = L.map('radarMap',{zoomControl:true}).setView([-34.6,-63.0], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
+  }).addTo(radarMap);
+}
+
+async function loadRadarList(){
+  const statusEl = document.getElementById('radarStatusTxt');
+  const pulse = document.getElementById('radarPulse');
+  try{
+    const res = await fetch(`${OHMC_BASE}/api/v1/radars?active_only=true`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    radarList = data.radars || [];
+    statusEl.textContent = `Conectado — ${radarList.length} radares activos (red SiNaRaMe)`;
+    pulse.className = 'pulse';
+  }catch(e){
+    radarList = RADAR_LIST_FALLBACK;
+    statusEl.textContent = 'Sin conexión directa a la API (posible bloqueo CORS del navegador) — usando lista de radares en caché local';
+    pulse.className = 'pulse stale';
+  }
+  ['radarSelect','dualRadarSelect'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = radarList.map(r=>`<option value="${r.code}">${r.code} — ${r.title}</option>`).join('');
+  });
+  const ez = radarList.findIndex(r=>r.code==='RMA2');
+  if(ez>=0){ document.getElementById('radarSelect').selectedIndex=ez; }
+  fetchLatestCog(true);
+}
+
+async function fetchLatestCog(recenter){
+  const radar = document.getElementById('radarSelect').value;
+  const product = document.getElementById('productSelect').value;
+  const vol = document.getElementById('volSelect').value;
+  const strat = document.getElementById('stratSelect').value;
+  const statusEl = document.getElementById('radarStatusTxt');
+  const pulse = document.getElementById('radarPulse');
+  const url = `${OHMC_BASE}/api/v1/cogs/latest?radar_code=${radar}&product_key=${product}&vol_nr=${vol}&strategy=${strat}`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const cog = await res.json();
+    renderRadarMeta(cog, radar);
+    const tileUrl = OHMC_BASE + cog.tile_url;
+    if(radarTileLayer) radarMap.removeLayer(radarTileLayer);
+    radarTileLayer = L.tileLayer(tileUrl, {opacity: document.getElementById('opRange').value/100, maxZoom:12, tms:false}).addTo(radarMap);
+    if(recenter && cog.bbox){
+      const b = cog.bbox;
+      radarMap.fitBounds([[b.min_lat,b.min_lon],[b.max_lat,b.max_lon]]);
+    }
+    statusEl.textContent = `Última pasada: ${cog.observation_time || '—'} UTC · ${radar}/${product}`;
+    pulse.className = 'pulse';
+  }catch(e){
+    statusEl.textContent = 'No se pudo obtener el mosaico más reciente (revisar CORS / disponibilidad de la API OHMC)';
+    pulse.className = 'pulse dead';
+    toast('Error al consultar la API de radar OHMC', true);
+  }
+}
+
+function renderRadarMeta(cog, radar){
+  document.getElementById('radarMeta').innerHTML = `
+    radar_code: ${cog.radar_code||radar}<br>
+    product: ${cog.product_key}<br>
+    obs_time: ${cog.observation_time}<br>
+    strategy/vol: ${cog.strategy}/${cog.vol_nr}<br>
+    dBZ min/max: ${cog.data_min?.toFixed(1)} / ${cog.data_max?.toFixed(1)}<br>
+    cog_id: ${cog.id}
+  `;
+}
+
+function toggleAuto(){
+  const btn = document.getElementById('autoBtn');
+  if(autoTimer){
+    clearInterval(autoTimer); autoTimer=null;
+    btn.textContent = '▶ Auto (2min)';
+  } else {
+    autoTimer = setInterval(()=>fetchLatestCog(false), 120000);
+    btn.textContent = '⏸ Deteniendo auto';
+  }
+}
+function toggleLayer(){ /* placeholder de capas de referencia adicionales */ }
+
+/* =========================================================================
+   SATÉLITE GOES-19 (NOAA/STAR — imágenes estáticas con zoom/pan)
+   ========================================================================= */
+/* ---- visor genérico de zoom/pan, reutilizado por sat / ownRadar / ownSat ---- */
+const zoomViewers = {}; // id -> {scale,x,y,dragging,startX,startY,imgEl,wrapEl}
+
+function registerZoomViewer(id, imgId, wrapId){
+  const imgEl = document.getElementById(imgId);
+  const wrapEl = document.getElementById(wrapId);
+  const state = {scale:1,x:0,y:0,dragging:false,startX:0,startY:0,imgEl,wrapEl};
+  zoomViewers[id] = state;
+  wrapEl.addEventListener('wheel', e=>{
+    e.preventDefault();
+    zoomStep(id, e.deltaY<0?1.12:0.9);
+  }, {passive:false});
+  wrapEl.addEventListener('mousedown', e=>{ state.dragging=true; state.startX=e.clientX-state.x; state.startY=e.clientY-state.y; });
+  window.addEventListener('mousemove', e=>{
+    if(!state.dragging) return;
+    state.x = e.clientX-state.startX; state.y = e.clientY-state.startY; applyZoomTransform(id);
+  });
+  window.addEventListener('mouseup', ()=>{ state.dragging=false; });
+}
+function applyZoomTransform(id){
+  const s = zoomViewers[id];
+  if(!s) return;
+  s.imgEl.style.transform = `translate(${s.x}px, ${s.y}px) scale(${s.scale})`;
+}
+function zoomStep(id, factor){
+  const s = zoomViewers[id];
+  if(!s) return;
+  s.scale = Math.min(8, Math.max(0.4, s.scale*factor));
+  applyZoomTransform(id);
+}
+function resetZoom(id){
+  const s = zoomViewers[id];
+  if(!s) return;
+  s.scale=1; s.x=0; s.y=0; applyZoomTransform(id);
+}
+
+function loadSat(){
+  const sector = document.getElementById('satSector').value;
+  const prod = document.getElementById('satProduct').value;
+  const res = document.getElementById('satRes').value;
+  document.getElementById('glmNote').style.display = (prod==='GLM') ? 'block' : 'none';
+  const ts = Date.now();
+  let url;
+  if(sector==='full'){
+    url = `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/${prod}/${res}.jpg?ts=${ts}`;
+  } else {
+    url = `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/${sector}/${prod}/${res}.jpg?ts=${ts}`;
+  }
+  const img = document.getElementById('satImg');
+  img.onerror = ()=>{ toast('No se pudo cargar la imagen GOES-19 para ese sector/producto (puede no estar disponible en este momento)', true); };
+  img.src = url;
+  resetZoom('sat');
+  const sectorNames = {sa:'Sudamérica',taw:'Atlántico Tropical',ssa:'Cono Sur',full:'Disco completo'};
+  document.getElementById('satHud').textContent = `GOES-19 · ${document.getElementById('satProduct').selectedOptions[0].text} · ${sectorNames[sector]} · ${res}`;
+}
+document.getElementById('satSector').addEventListener('change', loadSat);
+document.getElementById('satProduct').addEventListener('change', loadSat);
+document.getElementById('satRes').addEventListener('change', loadSat);
+
+/* =========================================================================
+   DOBLE PANEL — overlay Radar OHMC + GOES-19
+   ========================================================================= */
+let dualRadarLayer=null, dualSatLayer=null;
+function initDualMap(){
+  dualMap = L.map('dualMap').setView([-34.6,-63.0], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
+  }).addTo(dualMap);
+}
+function setDualMode(mode){
+  document.getElementById('dualModeOverlay').classList.toggle('on', mode==='overlay');
+  document.getElementById('dualModeSplit').classList.toggle('on', mode==='split');
+  const area = document.getElementById('dualArea');
+  if(mode==='split'){
+    area.style.background = 'linear-gradient(90deg,transparent 49.7%,#0c468f 49.7%,#0c468f 50.3%,transparent 50.3%)';
+  } else {
+    area.style.background = 'transparent';
+  }
+}
+
+/* ---- selector de fuente: mapa interactivo OHMC vs plots estáticos propios ---- */
+function setDualSource(src){
+  document.getElementById('dualSrcOhmc').classList.toggle('on', src==='ohmc');
+  document.getElementById('dualSrcOwn').classList.toggle('on', src==='own');
+  document.getElementById('dualPanelOhmc').style.display = src==='ohmc' ? 'block' : 'none';
+  document.getElementById('dualPanelOwn').style.display = src==='own' ? 'block' : 'none';
+  document.getElementById('dualArea').style.display = src==='ohmc' ? 'block' : 'none';
+  document.getElementById('dualOwnArea').style.display = src==='own' ? 'flex' : 'none';
+  setTimeout(()=>{ if(dualMap) dualMap.invalidateSize(); }, 60);
+}
+
+/* ---- backend propio: plots estáticos reales (PPI/VRAD/COLMAX) ---- */
+let ownAutoTimer = null;
+function ownHeaders(){
+  const key = document.getElementById('ownApiKey').value.trim();
+  return key ? {'x-api-key': key} : {};
+}
+async function loadOwnRadar(){
+  const base = document.getElementById('ownBackendUrl').value.trim().replace(/\/$/,'');
+  const radar = document.getElementById('ownRadar').value.trim().toUpperCase();
+  const producto = document.getElementById('ownProducto').value;
+  const statusEl = document.getElementById('ownStatusTxt');
+  const pulse = document.getElementById('ownPulse');
+  if(!base){ toast('Ingresá la URL de tu backend propio (Render/VPS)', true); return; }
+  try{
+    const res = await fetch(`${base}/api/latest?radar=${radar}&producto=${producto}`, {headers: ownHeaders()});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    document.getElementById('ownRadarImg').src = `${base}${data.url}?ts=${Date.now()}`;
+    document.getElementById('ownRadarHud').textContent = `${data.radar} · ${data.producto} · ${data.timestamp_utc}`;
+    statusEl.textContent = `Conectado — última imagen: ${data.timestamp_utc}`;
+    pulse.className = 'pulse';
+    resetZoom('ownRadar');
+  }catch(e){
+    statusEl.textContent = 'No se pudo conectar al backend propio (revisá URL, API key, o si el ciclo ya generó imágenes)';
+    pulse.className = 'pulse dead';
+    toast('Error al consultar el backend propio de radar', true);
+  }
+}
+function toggleOwnAuto(){
+  const btn = document.getElementById('ownAutoBtn');
+  if(ownAutoTimer){
+    clearInterval(ownAutoTimer); ownAutoTimer=null;
+    btn.textContent = '▶ Auto (según ciclo del backend)';
+  } else {
+    ownAutoTimer = setInterval(loadOwnRadar, 60000);
+    btn.textContent = '⏸ Deteniendo auto';
+  }
+}
+function loadOwnSat(){
+  const prod = document.getElementById('ownSatProduct').value;
+  const url = `https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/sa/${prod}/1200x1200.jpg?ts=${Date.now()}`;
+  const img = document.getElementById('ownSatImg');
+  img.onerror = ()=>{ toast('No se pudo cargar la imagen GOES-19', true); };
+  img.src = url;
+  document.getElementById('ownSatHud').textContent = `GOES-19 · ${document.getElementById('ownSatProduct').selectedOptions[0].text} · Sudamérica`;
+  resetZoom('ownSat');
+}
+document.getElementById('dualOpRadar').addEventListener('input', e=>{
+  document.getElementById('dualOpRadarVal').textContent = e.target.value+'%';
+  if(dualRadarLayer) dualRadarLayer.setOpacity(e.target.value/100);
+});
+document.getElementById('dualOpSat').addEventListener('input', e=>{
+  document.getElementById('dualOpSatVal').textContent = e.target.value+'%';
+  if(dualSatLayer) dualSatLayer.setOpacity(e.target.value/100);
+});
+
+async function applyDual(){
+  const radar = document.getElementById('dualRadarSelect').value;
+  const product = document.getElementById('dualProductSelect').value;
+  try{
+    const res = await fetch(`${OHMC_BASE}/api/v1/cogs/latest?radar_code=${radar}&product_key=${product}&vol_nr=01&strategy=0315`);
+    const cog = await res.json();
+    if(dualRadarLayer) dualMap.removeLayer(dualRadarLayer);
+    dualRadarLayer = L.tileLayer(OHMC_BASE+cog.tile_url, {opacity:document.getElementById('dualOpRadar').value/100, maxZoom:12}).addTo(dualMap);
+    if(cog.bbox) dualMap.fitBounds([[cog.bbox.min_lat,cog.bbox.min_lon],[cog.bbox.max_lat,cog.bbox.max_lon]]);
+  }catch(e){ toast('Error al cargar radar en doble panel', true); }
+
+  // aproximación de bounds del sector Sudamérica para la superposición satelital
+  const satProd = document.getElementById('dualSatProduct').value;
+  const bounds = [[-56,-82],[13,-32]];
+  if(dualSatLayer) dualMap.removeLayer(dualSatLayer);
+  dualSatLayer = L.imageOverlay(`https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/sa/${satProd}/1200x1200.jpg?ts=${Date.now()}`, bounds, {opacity:document.getElementById('dualOpSat').value/100}).addTo(dualMap);
+  toast('Overlay aplicado: la capa satelital es una referencia aproximada, no un georreferenciado exacto por píxel.');
+}
+
+/* =========================================================================
+   WARNGEN
+   ========================================================================= */
+let warnDrawnItems;
+function buildWTypeList(){
+  const wrap = document.getElementById('wtypeList');
+  wrap.innerHTML = WARNING_TYPES.map((w,i)=>`
+    <div class="wtype ${i===0?'sel':''}" data-id="${w.id}" onclick="selectWType('${w.id}')">
+      <div class="wswatch" style="background:${w.fill}"></div>
+      <div class="wname">${w.name}</div>
+    </div>`).join('');
+}
+function selectWType(id){
+  selectedWType = WARNING_TYPES.find(w=>w.id===id);
+  document.querySelectorAll('.wtype').forEach(el=>el.classList.toggle('sel', el.dataset.id===id));
+}
+
+function initWarnMap(){
+  warnMap = L.map('warnMap').setView([-34.6,-58.5], 7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
+  }).addTo(warnMap);
+
+  warnDrawnItems = new L.FeatureGroup();
+  warnMap.addLayer(warnDrawnItems);
+
+  const drawControl = new L.Control.Draw({
+    edit:{ featureGroup: warnDrawnItems, remove:true },
+    draw:{
+      polygon:{ allowIntersection:false, showArea:true, shapeOptions:{color:'#000000', weight:3, fillColor:'#E30513', fillOpacity:.4} },
+      polyline:false, rectangle:false, circle:false, circlemarker:false, marker:false
+    }
+  });
+  warnMap.addControl(drawControl);
+
+  warnMap.on(L.Draw.Event.CREATED, function(e){
+    const layer = e.layer;
+    layer.setStyle({ color:'#000000', weight: selectedWType.weight, fillColor: selectedWType.fill, fillOpacity:.42 });
+    layer.warnType = selectedWType.id;
+    layer.warnTypeName = selectedWType.name;
+    layer.bindPopup(`<b>${selectedWType.name}</b>`);
+    warnDrawnItems.addLayer(layer);
+    refreshWarnList();
+  });
+  warnMap.on('draw:deleted', refreshWarnList);
+}
+
+function refreshWarnList(){
+  const list = document.getElementById('warnList');
+  const layers = warnDrawnItems.getLayers();
+  if(layers.length===0){ list.innerHTML = 'Sin polígonos activos.'; return; }
+  list.innerHTML = layers.map((l,i)=>{
+    const wt = WARNING_TYPES.find(w=>w.id===l.warnType) || WARNING_TYPES[0];
+    return `<div class="card" style="padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+      <div class="wswatch" style="background:${wt.fill}"></div>
+      <div style="flex:1;font-size:12px;">${wt.name} #${i+1}</div>
+    </div>`;
+  }).join('');
+}
+
+function clearWarnings(){ warnDrawnItems.clearLayers(); refreshWarnList(); }
+
+function warningsToGeoJSON(){
+  const features = warnDrawnItems.getLayers().map(l=>{
+    const gj = l.toGeoJSON();
+    gj.properties = { warn_type: l.warnType, warn_type_name: l.warnTypeName, issued: new Date().toISOString() };
+    return gj;
+  });
+  return { type:'FeatureCollection', features };
+}
+
+function exportGeoJSON(){
+  const gj = warningsToGeoJSON();
+  if(gj.features.length===0){ toast('No hay polígonos para exportar', true); return; }
+  const blob = new Blob([JSON.stringify(gj,null,2)], {type:'application/geo+json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `TRP_warngen_${Date.now()}.geojson`;
+  a.click();
+  toast('GeoJSON exportado correctamente.');
+}
+
+function exportShapefile(){
+  const gj = warningsToGeoJSON();
+  if(gj.features.length===0){ toast('No hay polígonos para exportar', true); return; }
+  try{
+    shpwrite.download(gj, {folder:'TRP_warngen', types:{polygon:'warnings'}});
+    toast('Shapefile (.zip) generado.');
+  }catch(e){
+    toast('Error al generar el shapefile. Verificá conexión a la CDN de shp-write.', true);
+  }
+}
+
+function genWarnText(){
+  if(!selectedWType){ return; }
+  const loc = document.getElementById('wLoc').value || '(sin especificar)';
+  const motivo = document.getElementById('wMotivo').value || '(sin especificar)';
+  const mov = document.getElementById('wMov').value || 'sin datos de movimiento';
+  const hasta = document.getElementById('wHasta').value || '—';
+  const now = new Date();
+  const stamp = now.toISOString().slice(0,16).replace('T',' ')+'Z';
+  const txt =
+`GRUPO TRP METEOROLOGÍA — AVISO DE ${selectedWType.name.toUpperCase()}
+Emitido: ${stamp}
+Válido hasta: ${hasta} UTC
+
+El Grupo TRP Meteorología emite un AVISO DE ${selectedWType.name.toUpperCase()} para las
+siguientes localidades: ${loc}.
+
+MOTIVO: ${motivo}.
+MOVIMIENTO DE LA CÉLULA: ${mov}.
+
+Se recomienda a la población de la zona afectada tomar los recaudos
+correspondientes y mantenerse informada a través de fuentes oficiales.
+
+--
+Aviso de carácter no oficial, emitido por un grupo de aficionados a la
+meteorología con fines informativos y educativos. No reemplaza los avisos
+del Servicio Meteorológico Nacional (SMN).`;
+  document.getElementById('warnTextOut').value = txt;
+}
+function copyWarnText(){
+  const ta = document.getElementById('warnTextOut');
+  if(!ta.value){ toast('Generá el texto primero', true); return; }
+  ta.select();
+  document.execCommand('copy');
+  toast('Texto copiado al portapapeles.');
+}
+
+/* =========================================================================
+   METAR / CPI
+   ========================================================================= */
+const METAR_STATIONS = {
+  SAEZ:{name:'Ezeiza',lat:-34.8222,lon:-58.5358}, SABE:{name:'Aeroparque',lat:-34.5592,lon:-58.4156},
+  SACO:{name:'Córdoba',lat:-31.3236,lon:-64.2081}, SAME:{name:'Mendoza',lat:-32.8317,lon:-68.7929},
+  SAZR:{name:'Rosario',lat:-32.9036,lon:-60.7847}, SAAR:{name:'Rafaela',lat:-31.1806,lon:-61.5},
+  SANT:{name:'Neuquén',lat:-38.9489,lon:-68.1553}, SAZN:{name:'Neuquén Aero',lat:-38.9489,lon:-68.1553},
+  SAWH:{name:'Ushuaia',lat:-54.8433,lon:-68.2958}, SAWG:{name:'Río Gallegos',lat:-51.6089,lon:-69.3126},
+  SAZS:{name:'Santa Rosa',lat:-36.5883,lon:-64.2757}, SAZB:{name:'Bahía Blanca',lat:-38.7247,lon:-62.1693},
+  SAZM:{name:'Mar del Plata',lat:-37.9342,lon:-57.5733}, SAAP:{name:'Salta',lat:-24.856,lon:-65.4861},
+  SASA:{name:'Salta',lat:-24.856,lon:-65.4861}, SATU:{name:'Tucumán',lat:-26.8409,lon:-65.1049},
+  SARC:{name:'Resistencia',lat:-27.45,lon:-59.0561}, SARE:{name:'Corrientes',lat:-27.4455,lon:-58.7619},
+  SAOC:{name:'Comodoro Rivadavia',lat:-45.7853,lon:-67.4655}, SAOR:{name:'Trelew',lat:-43.2105,lon:-65.2703},
+  SASJ:{name:'San Juan',lat:-31.5717,lon:-68.4181}, SANL:{name:'La Rioja',lat:-29.3815,lon:-66.7962},
+  SANU:{name:'San Luis',lat:-33.2731,lon:-66.3564}, SAAV:{name:'Sauce Viejo',lat:-31.712,lon:-60.8117},
+  SAOD:{name:'Puerto Madryn',lat:-42.7592,lon:-65.1027}, SAWD:{name:'Río Grande',lat:-53.7776,lon:-67.7495},
+  SASO:{name:'San Rafael',lat:-34.5883,lon:-68.4033}, SANE:{name:'Sunchales',lat:-30.9,lon:-61.55},
+  SAZW:{name:'Concordia',lat:-31.2967,lon:-57.9963}, SARP:{name:'Posadas',lat:-27.3858,lon:-55.9707},
+  SAZY:{name:'Reconquista',lat:-29.2081,lon:-59.6961}, SAZL:{name:'Paraná',lat:-31.7948,lon:-60.4804},
+  SAZH:{name:'Rio Cuarto',lat:-33.0851,lon:-64.2606}, SAZP:{name:'La Plata',lat:-34.9722,lon:-57.8956},
+  SAVC:{name:'Viedma',lat:-40.8692,lon:-63.0004}, SAWU:{name:'San Julián',lat:-49.3068,lon:-67.8019}
+};
+
+function initMetarMap(){
+  metarMap = L.map('metarMap').setView([-38,-64],4.4);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19
+  }).addTo(metarMap);
+}
+let metarMarkers = L.layerGroup();
+
+function parseMetarLine(line){
+  line = line.trim();
+  if(!line) return null;
+  const parts = line.split(/\s+/);
+  const icao = parts[0];
+  if(!METAR_STATIONS[icao]) return null;
+  const timeMatch = line.match(/\b(\d{6}Z)\b/);
+  const windMatch = line.match(/\b(\d{3}|VRB)(\d{2,3})(G\d{2,3})?KT\b/);
+  const visMatch = line.match(/\b(\d{4})\b(?!Z)/);
+  const tempMatch = line.match(/\b(M?\d{2})\/(M?\d{2})\b/);
+  const qnhMatch = line.match(/\bQ(\d{4})\b/);
+  const cloudMatches = line.match(/\b(FEW|SCT|BKN|OVC)(\d{3})\b/g) || [];
+  return {
+    icao, raw: line,
+    time: timeMatch ? timeMatch[1] : '—',
+    wind: windMatch ? `${windMatch[1]}°/${parseInt(windMatch[2])}kt${windMatch[3]?(' G'+windMatch[3].slice(1)):''}` : '—',
+    vis: visMatch ? (visMatch[1]==='9999'?'≥10km':visMatch[1]+'m') : '—',
+    clouds: cloudMatches.length ? cloudMatches.join(' ') : 'CAVOK/SKC',
+    temp: tempMatch ? `${tempMatch[1].replace('M','-')}/${tempMatch[2].replace('M','-')}°C` : '—',
+    qnh: qnhMatch ? qnhMatch[1]+' hPa' : '—'
+  };
+}
+
+function plotMetar(){
+  const raw = document.getElementById('metarInput').value.split('\n');
+  const parsed = raw.map(parseMetarLine).filter(Boolean);
+  metarMarkers.clearLayers();
+  metarMap.addLayer(metarMarkers);
+  const tbody = document.querySelector('#metarTable tbody');
+  if(parsed.length===0){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--trp-steel);padding:16px;">No se reconoció ninguna estación válida en el texto pegado.</td></tr>';
+    toast('No se reconocieron estaciones METAR válidas', true);
+    return;
+  }
+  tbody.innerHTML = parsed.map(p=>`<tr>
+    <td><b>${p.icao}</b> <span style="color:var(--trp-steel)">(${METAR_STATIONS[p.icao].name})</span></td>
+    <td>${p.time}</td><td>${p.wind}</td><td>${p.vis}</td><td>${p.clouds}</td><td>${p.temp}</td><td>${p.qnh}</td>
+  </tr>`).join('');
+  parsed.forEach(p=>{
+    const st = METAR_STATIONS[p.icao];
+    const marker = L.circleMarker([st.lat, st.lon], {radius:8, color:'#000', weight:2, fillColor:'#1668c7', fillOpacity:.85})
+      .bindPopup(`<b>${p.icao} — ${st.name}</b><br>Hora: ${p.time}<br>Viento: ${p.wind}<br>Visibilidad: ${p.vis}<br>Nubes: ${p.clouds}<br>Temp/PR: ${p.temp}<br>QNH: ${p.qnh}<br><span class="mono" style="font-size:10px">${p.raw}</span>`);
+    metarMarkers.addLayer(marker);
+  });
+  if(parsed.length){
+    const group = L.featureGroup(metarMarkers.getLayers());
+    metarMap.fitBounds(group.getBounds().pad(0.3));
+  }
+  toast(`${parsed.length} estación(es) ploteada(s).`);
+}
+</script>
+</body>
+</html>

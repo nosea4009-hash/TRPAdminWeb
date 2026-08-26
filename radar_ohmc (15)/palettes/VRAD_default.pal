@@ -1,0 +1,71 @@
+; Paleta VRAD (velocidad radial Doppler, m/s)
+; extraida por muestreo de colorbar de radar Parana-INTA (referencia visual del usuario)
+; Formato simple tipo WXTools: Color: <valor> <R> <G> <B>
+Product: VRAD
+Units: m/s
+Min: -40
+Max: 40
+Color: -40.00 96 3 135
+Color: -38.85 108 4 152
+Color: -37.61 85 5 153
+Color: -36.36 69 4 153
+Color: -35.11 52 3 153
+Color: -33.86 28 2 153
+Color: -32.61 23 23 160
+Color: -31.36 26 55 170
+Color: -30.11 29 87 181
+Color: -28.86 32 119 192
+Color: -27.61 35 151 202
+Color: -26.36 38 183 213
+Color: -25.11 48 224 227
+Color: -23.86 84 227 230
+Color: -22.62 104 229 232
+Color: -21.37 123 231 234
+Color: -20.07 143 234 237
+Color: -18.82 162 236 239
+Color: -17.57 182 238 241
+Color: -16.32 100 247 126
+Color: -15.07 60 251 71
+Color: -13.82 3 234 3
+Color: -12.57 3 219 3
+Color: -11.32 3 187 3
+Color: -10.07 2 171 2
+Color: -8.82 2 140 2
+Color: -7.57 2 124 2
+Color: -6.32 2 108 2
+Color: -5.07 78 121 76
+Color: -3.83 90 125 88
+Color: -2.58 94 126 92
+Color: -1.33 106 130 104
+Color: 1.22 118 118 118
+Color: 2.47 137 102 115
+Color: 3.72 136 95 108
+Color: 4.97 133 69 79
+Color: 6.22 132 56 65
+Color: 7.47 110 0 0
+Color: 8.72 126 0 0
+Color: 9.97 143 0 1
+Color: 11.22 160 0 2
+Color: 12.47 176 0 3
+Color: 13.72 193 0 4
+Color: 14.96 210 0 5
+Color: 16.21 227 0 6
+Color: 17.46 243 0 7
+Color: 18.71 250 65 97
+Color: 20.01 251 82 122
+Color: 21.26 252 98 146
+Color: 22.51 253 115 171
+Color: 23.76 254 131 196
+Color: 25.01 255 149 208
+Color: 26.26 255 178 193
+Color: 27.51 255 206 178
+Color: 28.76 255 232 163
+Color: 30.01 255 219 151
+Color: 31.26 255 206 138
+Color: 32.50 255 193 125
+Color: 33.75 255 180 113
+Color: 35.00 255 167 100
+Color: 36.25 255 154 87
+Color: 37.50 252 135 78
+Color: 38.75 241 126 72
+Color: 39.95 231 117 67

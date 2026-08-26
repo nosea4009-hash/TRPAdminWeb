@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: trp-radar-backend
+    env: docker
+    plan: starter          # el plan free "duerme" tras inactividad y el scheduler se corta; starter (~7 USD/mes) lo mantiene siempre activo
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: RADARS
+        value: RMA2,RMA6,RMA1,RMA4,RMA8
+      - key: PRODUCTS
+        value: DBZHo,VRAD,COLMAX
+      - key: CYCLE_MINUTES
+        value: "10"
+      - key: API_KEY
+        sync: false        # lo cargás vos manualmente en el dashboard de Render, no queda en el repo

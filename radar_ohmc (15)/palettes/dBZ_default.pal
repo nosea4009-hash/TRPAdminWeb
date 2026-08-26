@@ -1,0 +1,32 @@
+; Paleta de Reflectividad (dBZ) - paleta clasica estilo SINARAME/NWS
+; Formato simple tipo WXTools: Color: <valor> <R> <G> <B>
+;
+; CALIBRADA al rango oficial real del producto DBZH de OHMC
+; (cog_vmin=-20, cog_vmax=70 - confirmado via /api/v1/cogs). Si la
+; paleta usa un rango mas ancho que los datos reales (ej hasta 75-90),
+; los ecos intensos de una tormenta real (que rara vez superan 65-70
+; dBZ) nunca llegan a mostrar los colores mas vivos de la escala y se
+; ven "apagados" aunque el dato este bien decodificado.
+Product: DBZH
+Units: dBZ
+Min: -20
+Max: 70
+Color: -20 40  40  40
+Color: -15 60  60  60
+Color: -10 80  80  90
+Color: -5  90  110 150
+Color: 0   60  140 220
+Color: 5   30  110 200
+Color: 10  0   200 0
+Color: 15  0   170 0
+Color: 20  0   140 0
+Color: 25  120 200 0
+Color: 30  255 255 0
+Color: 35  240 210 0
+Color: 40  255 160 0
+Color: 45  255 100 0
+Color: 50  230 0   0
+Color: 55  190 0   0
+Color: 60  150 0   0
+Color: 65  255 0   255
+Color: 70  230 180 255
